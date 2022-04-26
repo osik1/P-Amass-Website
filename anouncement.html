@@ -1,0 +1,520 @@
+<?php include("path.php"); 
+ include(ROOT_PATH . "/app/controllers/comments.php");
+ 
+$posts = array();
+
+
+$popularPostTitle = 'Popular Posts';
+$relatedPostTitle = 'Related Posts';
+$commentsTitle = 'Comments';
+
+
+
+
+// this will fetch all topics
+$topics = selectAll('topics');  
+
+
+////receiving the post_url from the homepage///
+if (isset($_GET['post_url'])){
+$post = selectOne('posts', ['post_url' => $_GET['post_url']]);
+$postid = escape($post['id']);
+$user_id = escape($post['user_id']);
+$title = escape($post['title']);
+$description = escape($post['description']);
+$post_url = escape($post['post_url']);
+$body = escape($post['body']);
+$topic_id = escape($post['topic_id']);
+$published = escape($post['published']);
+
+}
+
+//COUNTING VIEWS
+if(isset($_GET['post_url'])){
+$view_query = "UPDATE posts SET post_views_count = post_views_count + 1 WHERE post_url = '$post_url'";
+$send_query= mysqli_query($conn, $view_query);
+}
+
+    
+//COUNTING POST COMMENT
+$sql = "SELECT * FROM comments WHERE post_id='{$postid}' AND published = 1 ";
+$select_all_post_comments = mysqli_query($conn, $sql);
+$post_comments_counts = mysqli_num_rows($select_all_post_comments);
+
+
+
+
+//GETTING USERNAME AND EMAIL OF THE AUTHOR FOR A POST////////////
+if (isset($post['post_url'])){
+$sql = "SELECT * FROM users WHERE id = '{$user_id}' ";
+$user_name = mysqli_query($conn, $sql);   
+}
+while($row = mysqli_fetch_array($user_name)){
+$id = escape($row['id']);
+$username = escape($row['username']);
+$email = escape($row['email']);
+}
+
+
+ 
+////////////////////// function to display RELATED POST ///////////////////////////
+if (isset($_GET['post_url'])){
+
+$postss = selectAll('posts', ['published' => 1 , 'topic_id' => $topic_id ]);
+$page = !empty( $_GET['page'] ) ? (int) $_GET['page'] : 1;
+$total = count( $postss ); //total items in array    
+$limit = 5; //per page    
+$totalPages = ceil( $total/ $limit ); //calculate total pages
+$page = max($page, 1); //get 1 page when $_GET['page'] <= 0
+$page = min($page, $totalPages); //get last page when $_GET['page'] > $totalPages
+$offset = ($page - 1) * $limit;
+if( $offset < 0 ) $offset = 0;
+$postss = array_slice( $postss, $offset, $limit );//this is where i query the number of post i need from the array
+
+}
+
+//////////////////// IF THERE ARE NO RELATED POST, CHANGE THE TITLE /////////////////// 
+if(empty($postss)){
+    $relatedPostTitle = 'No Related Posts';   
+}
+
+/////////////////// CALLING POPULAR POST FUNCTION //////////////////////////////
+$popular_post = get_popular_post();
+if(empty($popular_post)){
+    $popularPostTitle = 'No Popular Posts';   
+}
+
+
+
+
+
+?>
+
+<!DOCTYPE html>
+<html lang="en_US">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="ie-edge">
+        <link href="https://fonts.googleapis.com/css?family=Montserrat|Open+Sans+Condensed:300|Oswald|Roboto&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:400,600,700" rel="stylesheet">
+        <!--font awesome-->
+        <script src="https://kit.fontawesome.com/bd832a5ee6.js" crossorigin="anonymous"></script>
+        <!-- title icon  -->
+        <link rel="shortcut icon" href="<?php echo BASE_URL . '/assets/images/iblogo.png'?>" />
+        <!--custom styling-->
+        <link rel="stylesheet" href="assets/css/style.css">
+        
+        <!--google fonts-->
+        <link href="https://fonts.googleapis.com/css?family=Candal&display=swap" rel="stylesheet">
+
+         <!--GETTING SEO FOR POST LINKS -->
+        <meta name="description" content=" <?php echo $post['description']; ?>" />
+        <meta name="robots" content="index, follow" />
+        <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+        <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+        <link rel="canonical" href="<?php echo BASE_URL . '/post/' . $post['post_url']; ?>" />
+        <meta property="og:locale" content="en_US" />
+        <meta property="og:type" content="article" />
+        <meta property="og:image" content="<?php echo BASE_URL . '/assets/images/' . $post['image']; ?>"/>
+        <meta property="og:image:width" content="1500" />
+	    <meta property="og:image:height" content="1000" />
+        <meta property="og:title" content="<?php echo $post['title'];?>" />
+        <meta property="og:url" content="<?php echo BASE_URL . '/post/' . $post['post_url']; ?>"/>
+        <meta property="og:site_name" content="SKD Blog" />
+        <meta property="article:author" content="https://facebook.com/SKDTechBlog" />
+        <meta property="article:published_time" content="<?php echo $post['created_at']; ?>" />
+        <meta property="article:modified_time" content="<?php echo $post['created_at']; ?>" />
+        <meta property="og:description" content=" <?php echo $post['description']; ?> " />
+        <meta property="fb:app_id" content="106511667508499" />
+        <!-- Twitter SEO -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@Blogiproject">
+        <meta name="twitter:creator" content="@osik_newton">
+        <meta name="twitter:title" content="<?php echo $post['title'];?>">
+        <meta name="twitter:description" content="<?php echo $post['description']; ?>">
+        <meta name="twitter:image" content="<?php echo BASE_URL . '/assets/images/' . $post['image']; ?>">
+            
+        
+
+        
+        <title><?php echo $anouncement['title'];?> | P-AMASS </title>
+         <!-- Tiny -->
+        <script src="https://cdn.tiny.cloud/1/30kzahc7yzmtk526nhedmn1du9403lnk6sntq1wwrbybudsg/tinymce/5/tinymce.min.js" referrerpolicy="origin"></script>        
+
+    </head>
+    <body>
+
+      
+        
+        <!--TODO include here-->
+        <header id="home-header">
+            <div class="wrapper">
+                <div class="branding">
+                <a href="index.html">
+                    <img
+                    src="assets/images/logo.png"
+                    alt=""
+                    />
+                </a>
+                </div>
+                <nav>
+                <div class="top-section">
+                    <div>
+                    <!-- <input type="text" name="#" id="search-site" /> -->
+                    <p class=""><strong>TALIMUL ISLAM AHMADIYYA SENIOR HIGH SCHOOL, POTSIN, C/R</strong> </p>
+                    </div>
+                </div>
+                <div class="bottom-section">
+                    <ul class="main-menu">
+                        <li><a href="">School</a></li>
+                        <li><a href="">Academic</a></li>
+                        <li><a href="">Staff</a></li>
+                        <li><a href="">Gallery</a></li>
+                        <li><a href="">Sports</a></li>
+                        <li><a href="#footer">Contact</a></li>
+                    </ul>
+    
+                    <div class="menu-wrap">
+                    <input type="checkbox" class="toggler" />
+                    <div class="hamburger"><div></div></div>
+                    <div class="menu">
+                        <div>
+                        <div>
+                            <ul>
+                            <li><a href="">School</a></li>
+                            <li><a href="">Academic</a></li>
+                            <li><a href="">Staff</a></li>
+                            <li><a href="">Gallery</a></li>
+                            <li><a href="">Sports</a></li>
+                            <li><a href="#footer">Contact</a></li>
+                            </ul>
+                        </div>
+                        </div>
+                    </div>
+                    </div>
+    
+                    <a href="index.html#news" class="btn-blog">
+                        <strong>News</strong>
+                        <svg
+                        enable-background="new 0 0 512 512"
+                        id="Layer_1"
+                        version="1.1"
+                        viewBox="0 0 512 512"
+                        xml:space="preserve"
+                        xmlns="http://www.w3.org/2000/svg"
+                        xmlns:xlink="http://www.w3.org/1999/xlink"
+                    > 
+                        <g>
+                        <path
+                            d="M434.5,72.3V412c0,33.6-27.5,61.1-61,61.1H126.7c-5.6,0-11-1-16.2-2.5c7.8,23.7,30,41.1,56.2,41.1h249.9   c32.7,0,59.5-26.8,59.5-59.5V128.8C476.1,102.3,458.5,80,434.5,72.3z"
+                            fill="#303A3F"
+                        />
+                        <path
+                            d="M345.2,0H95.4C62.7,0,35.9,26.8,35.9,59.5V383c0,32.7,26.8,59.5,59.5,59.5h249.9   c32.7,0,59.5-26.8,59.5-59.5V59.5C404.7,26.8,378,0,345.2,0z M364.2,349.8c0,25.7-21.1,46.8-46.8,46.8H120.9   c-25.7,0-46.8-21.1-46.8-46.8V95.4c0-25.7,21.1-46.8,46.8-46.8h196.6c25.7,0,46.8,21.1,46.8,46.8V349.8z"
+                            fill="#303A3F"
+                        />
+                        <g>
+                            <path
+                            d="M319.8,117.5H190.5c-5.4,0-9.8-4.4-9.8-9.8v-0.7c0-5.4,4.4-9.8,9.8-9.8h129.3c5.4,0,9.8,4.4,9.8,9.8v0.7    C329.7,113.1,325.2,117.5,319.8,117.5z"
+                            fill="#303A3F"
+                            />
+                            <path
+                            d="M319.8,175.2H120.4c-5.4,0-9.8-4.4-9.8-9.8v-0.7c0-5.4,4.4-9.8,9.8-9.8h199.5c5.4,0,9.8,4.4,9.8,9.8v0.7    C329.7,170.7,325.2,175.2,319.8,175.2z"
+                            fill="#303A3F"
+                            />
+                            <path
+                            d="M319.8,232.8H120.4c-5.4,0-9.8-4.4-9.8-9.8v-0.7c0-5.4,4.4-9.8,9.8-9.8h199.5c5.4,0,9.8,4.4,9.8,9.8v0.7    C329.7,228.4,325.2,232.8,319.8,232.8z"
+                            fill="#303A3F"
+                            />
+                            <path
+                            d="M319.8,290.5H120.4c-5.4,0-9.8-4.4-9.8-9.8v-0.7c0-5.4,4.4-9.8,9.8-9.8h199.5c5.4,0,9.8,4.4,9.8,9.8v0.7    C329.7,286.1,325.2,290.5,319.8,290.5z"
+                            fill="#303A3F"
+                            />
+                            <path
+                            d="M319.8,348.2H120.4c-5.4,0-9.8-4.4-9.8-9.8v-0.7c0-5.4,4.4-9.8,9.8-9.8h199.5c5.4,0,9.8,4.4,9.8,9.8v0.7    C329.7,343.7,325.2,348.2,319.8,348.2z"
+                            fill="#303A3F"
+                            />
+                        </g>
+                        </g>
+                    </svg>
+                    </a>
+                </div>
+                </nav>
+            </div>
+            </header>
+    <br>
+    <br>
+    <br>
+    <br>
+    <br>
+    <br>
+    
+        <!-- // TODO include here-->
+        <!--Page Wrapper-->
+        <div class="page-wrapper">
+           
+          
+
+            <!--content-->
+           
+            <div class="content clearfix">
+                <!--MAIN CONTENT WRAPPER-->
+                <div class="main-content-wrapper">
+
+                    <div class="main-content single">
+                        <div>
+                      <h2 class="post-title"><?php echo $post['title'];?></h2>
+                        </div>
+                     
+                        <i class="far fa-user"><a href="<?php echo BASE_URL . '/user/' ?><?php echo $username;?>"> <?php echo substr($username, 0, 8) . '...';?> </a></i>
+                        
+                         &nbsp;
+                        <i class="fa fa-clock-o" > <?php echo date ('d-m-y', strtotime($post['created_at'])); ?></i>
+                        &nbsp;
+                        <i class="fa fa-comment-o" > <?php echo $post_comments_counts; ?></i>
+<br>
+                        <!-- SHARE BUTTONS -->
+                        <!-- AddToAny BEGIN -->
+                        <div class="a2a_kit a2a_kit_size_32 a2a_default_style">
+                            <a class="a2a_button_facebook a2a_counter"></a>
+                            <a class="a2a_button_twitter a2a_counter"></a>
+                            <a class="a2a_button_whatsapp a2a_counter"></a>
+                            <a class="a2a_dd a2a_counter" href="https://www.addtoany.com/share"></a>
+                        </div>
+                        <script async src="https://static.addtoany.com/menu/page.js"></script>
+                        <!-- AddToAny END -->
+                        <br>
+                        
+                        <img src="<?php echo BASE_URL . '/assets/images/' . $post['image']; ?>"class="single-page-image">
+                    <div class="post-content">
+                        <div class="post-content">
+                        <?php echo html_entity_decode($post['body']); ?>
+                        </div>
+                         
+                         <br>
+                         
+                         <!-- SHARE BUTTONS -->
+                        <!-- AddToAny BEGIN -->
+                        <div class="a2a_kit a2a_kit_size_32 a2a_default_style">
+                            <a class="a2a_button_facebook a2a_counter"></a>
+                            <a class="a2a_button_twitter a2a_counter"></a>
+                            <a class="a2a_button_whatsapp a2a_counter"></a>
+                            <a class="a2a_dd a2a_counter" href="https://www.addtoany.com/share"></a>
+                        </div>
+                        <!-- AddToAny END -->
+                        <!-- SHARE BUTTONS -->
+
+                    <br>
+                        <p><strong>Author:</strong>  <p>
+                         <i class="far fa-user"> <a class="username" href="<?php echo BASE_URL . '/user/' ?><?php echo $username;?>"><?php echo $username; ?></a> </i>
+                         <p><i class="fa fa-envelope-o" aria-hidden="true"></i> <a href="https://mail.google.com/mail/?view=cm&fs=1&tf=1&to=<?php echo $email; ?>"><?php echo $email;?></a> <p>
+
+                    <br>
+                    <!-- <div id="comments"> 
+                    <?php include(ROOT_PATH . "/app/helpers/formErrors.php"); ?>
+                    <?php include(ROOT_PATH . "/app/includes/messages.php"); ?>
+                         <form action="<?php echo BASE_URL . '/post.php'?>" method="post"  enctype="multipart/form-data">
+                         <h2 class="page-title">Add Comments</h2>
+                        
+                         <input type= "hidden" name="post_id" value= <?php echo $postid; ?> >
+                         <input type= "hidden" name="post_url" value= <?php echo $post_url; ?> >
+                         <div>
+                        <textarea name="comment" id="body"><?php echo $comment ?></textarea>
+                         </div>
+                         <br>
+                         <div>
+                            <button type="submit" name="add-comment" class="btn ">Add Comment</button>
+                        </div>
+                         </form>
+                         </div> -->
+                    <!-- <br>
+                         <h2 class="page-title"><?php echo $commentsTitle; ?></h2>
+                         <?php
+                      
+                         ?>
+                         <?php 
+                         $sql = "SELECT * FROM comments WHERE post_id = '$postid' AND published = 1 ";
+                         $comments_results = mysqli_query($conn, $sql) or die("error");
+                         if(mysqli_num_rows($comments_results) > 0) {
+                             while($com = mysqli_fetch_assoc($comments_results)){
+                                $id = escape($com['user_id']);
+                                $comment_username = escape($com['username']);
+                                $comment_body = escape($com['comment']);
+                                $comment_date = escape($com['created_At']); 
+                                ?>
+                                <div class="comments">                                                                           
+                                <p class="comment"> <?php echo html_entity_decode($comment_body)?>&nbsp;<a class="username" href="<?php echo BASE_URL . '/user/' ?><?php echo $comment_username;?>">@<?php echo $comment_username;?></a> </p>
+                                <p class="date"><?php echo $comment_date; ?></p> 
+                                </div>
+                            <?php
+                             }
+                         }
+                         
+                        ?>
+                          -->
+                         
+                 
+
+
+                
+                    </div>
+                
+                  
+
+                </div>
+            </div>
+                
+                <!--//MAIN CONTENT-->
+
+                <!--SIDEBAR-->
+                <div class="sidebar single">
+
+                    <!--////////////Facebook PAGE PLUG IN////////////-->
+                <div class="fb-page" data-href="https://web.facebook.com/IProjectBlog-106511667508499/" data-tabs="" data-width="" 
+                    data-height="" data-small-header="false" data-adapt-container-width="true" data-hide-cover="false" 
+                    data-show-facepile="true"><blockquote cite="https://web.facebook.com/IProjectBlog-106511667508499/" 
+                    class="fb-xfbml-parse-ignore"><a href="https://web.facebook.com/IProjectBlog-106511667508499/">IProjectBlog</a></blockquote>
+                </div>
+                    <!--/////////////Facebook PAGE PLUG IN/////////////-->
+
+                    </br>
+                    </br>
+                     <!-- //////////// MORE NEWS ///////////// -->
+                    <div class="section popular">
+                    <h2 class="section-title"><?php echo $popularPostTitle ?></h2>
+                    <?php
+                     foreach ($popular_post as $pop_post): ?>
+                        <div class="post clearfix">
+                           <a href="<?php echo $pop_post['post_url']; ?>"> <img src="<?php echo BASE_URL . '/assets/images/' . $pop_post['image']; ?>" alt=""></a>
+                            <a href="<?php echo $pop_post['post_url']; ?>" class="title"><?php echo substr($pop_post['title'], 0, 59) . ' ...'; ?></a>
+                            <div class="pub-info">
+                                <i class="fa fa-clock-o" > <?php echo date ('d-m-y', strtotime($pop_post['created_at'])); ?></i>
+                                &nbsp;
+                                <!-- //COUNTING RELATED POST COMMENT -->
+                                <?php                            
+                                $PPid = escape($pop_post['id']);
+                                $sql = "SELECT * FROM comments WHERE post_id='{$PPid}' AND published = 1 ";
+                                $select_all_p_post_comments = mysqli_query($conn, $sql);
+                                $p_post_comments_counts = mysqli_num_rows($select_all_p_post_comments);?>
+                                <i class="fa fa-comment-o" > <?php echo $p_post_comments_counts; ?></i>
+                            </div>
+                        </div>
+                    <?php endforeach;?>
+                    </div>
+                
+
+
+                     
+
+
+
+
+
+                  
+                    
+                </div>
+                 <!--//SIDEBAR -->
+            </div>
+
+
+
+            <!--//content-->
+
+
+         </div>
+        <!--Page Wrapper-->
+
+       <!--//Footer-->
+
+       <!-- <?php include(ROOT_PATH . "/app/includes/footer.php"); ?> -->
+       <div id="footer"> 
+        <div class="footer">
+            <div class="footer-content">
+                <div class="footer-section about">
+                    <h2>Contact Us</h2>
+                <a href="index.html"><img src="assets/images/logo.png" alt="logo" class="header-logo"></a>
+                    <p>
+                    T. I. Ahmadiyya Senior High School, P. O. Box 3419, Kumasi, Ashanti, Ghana 
+                    </p>
+                    <br>
+                    <div class="contact">
+                        <span><i class="fas fa-phone"></i>&nbsp; +233555253975</span>
+                        <a href="https://mail.google.com/mail/?view=cm&fs=1&tf=1&to=iprojectlegblog@gmail.com"> <span><i class="fas fa-envelope"></i>&nbsp; iprojectlegblog@gmail.com</span></a>
+                    </div>
+                    <div class="socials">
+                        <a href="https://web.facebook.com/IProjectBlog-106511667508499/"><i class="fab fa-facebook"></i></a>
+                        <a href="https://twitter.com/BlogIproject"><i class="fab fa-twitter"></i></a>
+                        <a href="https://www.instagram.com/iprojectblog/"><i class="fab fa-instagram"></i></a>
+                        <a href="https://api.whatsapp.com/send?phone=233555253975"><i class="fab fa-whatsapp"></i></a>
+    
+                        <!--<a href=""><i class="fab fa-youtube"></i></a> -->
+    
+                    </div>
+                </div>
+    
+                <div class="footer-section links">
+                    <h2>Quick links</h2>
+                <br>
+                <ul>
+                    <a href=""><li>Terms and Conditions</li></a>
+                    <a href=""><li>Privacy</li></a>
+                    <a href=""><li>Advertise with us</li></a>
+    
+                </ul>
+    
+               
+                </div>
+    
+                <div class="footer-section contact-form">
+                    <h2>Email Us</h2>
+                    <br>
+                    <form  method="post" action="acknowledge.php">
+                    <input type="name" name="name" class="text-input contact-input" placeholder="Your name please...">
+                    <input type="email" name="email" class="text-input contact-input" placeholder="Your email address...">
+                    <textarea rows="4" name="message"class="text-input contact-input" placeholder="Your message....."></textarea>
+                    <button type='submit' name="send"  class="btn btn-big"><i class="fa fa-envelope"></i> Send</button>
+                    </form>
+                </div>
+    
+            </div>
+            <div class="footer-bottom">
+                <p>Developed & Maintained By <a href="" class="">Osik</a></p>
+                &nbsp;
+                &copy; Copyright <?php echo date ('yy'); ?>,All Rights Reserved- P-AMASS
+            </div>
+        </div>
+    </div> 
+
+        <!--//Footer-->
+
+     <!--JQuery-->
+     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+       
+     <!--Slick carousel-->
+     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.js"></script>
+
+    <!--ckeditor--> 
+    <script src="https://cdn.ckeditor.com/ckeditor5/31.1.0/classic/ckeditor.js"></script>
+     
+
+     <!--ckeditor--> 
+     <!-- <script src="ckeditor5-build-classic/ckeditor.js"></script> -->
+
+     <!-- Share Buttons -->
+     <script async src="https://static.addtoany.com/menu/page.js"></script>
+
+     <!--facebookpage cdn-->
+     <div id="fb-root"></div>
+     <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v5.0"></script>
+
+     <!--Custom Click for menu bar-->
+     <script src="assets/js/main.js"></script>
+
+   
+
+     <!-- Go to www.addthis.com/dashboard to customize your tools -->
+     <!-- <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js#pubid=ra-6231c946eef298c4"></script> -->
+
+    </body>
+</html>
